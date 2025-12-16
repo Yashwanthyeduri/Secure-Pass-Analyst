@@ -1,0 +1,5 @@
+{
+  "name": "SecurePass Analyst",
+  "description": "An interactive security awareness platform for evaluating password strength and learning best practices using AI-driven analysis.",
+  "requestFramePermissions": []
+}
