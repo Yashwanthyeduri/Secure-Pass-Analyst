@@ -1,17 +1,48 @@
+
 import React, { useState, useEffect } from 'react';
-import { Shield, AlertTriangle, Key, CheckCircle, BrainCircuit, Lock, Fingerprint, ChevronRight, RefreshCw, MessageSquare } from 'lucide-react';
+import { Shield, AlertTriangle, Key, CheckCircle, BrainCircuit, Lock, Fingerprint, ChevronRight, RefreshCw, MessageSquare, ExternalLink, Settings } from 'lucide-react';
 import PasswordTester from './components/PasswordTester';
 import ComparisonChart from './components/ComparisonChart';
 import InfoSection from './components/InfoSection';
 import SecurityChat from './components/SecurityChat';
 import { getSecurityTip } from './services/gemini';
 
+// Fix: Define the AIStudio interface and update the Window declaration to match expected global types and modifiers.
+declare global {
+  interface AIStudio {
+    hasSelectedApiKey: () => Promise<boolean>;
+    openSelectKey: () => Promise<void>;
+  }
+  interface Window {
+    aistudio: AIStudio;
+  }
+}
+
 const App: React.FC = () => {
   const [tip, setTip] = useState<string>('Loading daily security tip...');
+  const [hasKey, setHasKey] = useState<boolean>(true); // Default to true to avoid flicker if they have one
 
   useEffect(() => {
+    checkKey();
     getSecurityTip().then(setTip);
+
+    const handleError = () => {
+      setHasKey(false);
+    };
+    window.addEventListener('gemini-api-error', handleError);
+    return () => window.removeEventListener('gemini-api-error', handleError);
   }, []);
+
+  const checkKey = async () => {
+    const selected = await window.aistudio.hasSelectedApiKey();
+    setHasKey(selected);
+  };
+
+  const handleSelectKey = async () => {
+    await window.aistudio.openSelectKey();
+    setHasKey(true); // Proceed assuming success as per instructions
+    getSecurityTip().then(setTip);
+  };
 
   const handleScroll = (e: React.MouseEvent<HTMLAnchorElement>, id: string) => {
     e.preventDefault();
@@ -20,6 +51,36 @@ const App: React.FC = () => {
       element.scrollIntoView({ behavior: 'smooth' });
     }
   };
+
+  if (!hasKey) {
+    return (
+      <div className="min-h-screen bg-slate-900 flex items-center justify-center p-4">
+        <div className="max-w-md w-full bg-slate-800 rounded-2xl p-8 border border-slate-700 shadow-2xl text-center">
+          <div className="bg-blue-500/10 w-20 h-20 rounded-full flex items-center justify-center mx-auto mb-6">
+            <Key className="text-blue-500 w-10 h-10" />
+          </div>
+          <h1 className="text-3xl font-bold text-white mb-4">API Setup Required</h1>
+          <p className="text-slate-400 mb-8">
+            To provide real-time AI analysis and chat, SecurePass Analyst requires a Google Gemini API key. Please select a key from a paid GCP project.
+          </p>
+          <button
+            onClick={handleSelectKey}
+            className="w-full bg-blue-600 hover:bg-blue-500 text-white font-bold py-3 rounded-xl transition-all shadow-lg shadow-blue-500/20 mb-4"
+          >
+            Select API Key
+          </button>
+          <a
+            href="https://ai.google.dev/gemini-api/docs/billing"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="inline-flex items-center gap-2 text-sm text-slate-500 hover:text-blue-400 transition-colors"
+          >
+            Learn about API billing <ExternalLink size={14} />
+          </a>
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen bg-slate-900 text-slate-200 selection:bg-blue-500/30">
@@ -40,13 +101,22 @@ const App: React.FC = () => {
               <a href="#chat" onClick={(e) => handleScroll(e, 'chat')} className="hover:text-blue-400 transition-colors flex items-center gap-1"><MessageSquare size={14}/> Ask AI</a>
               <a href="#recommendations" onClick={(e) => handleScroll(e, 'recommendations')} className="hover:text-blue-400 transition-colors">Best Practices</a>
             </div>
-            <a 
-              href="#lab" 
-              onClick={(e) => handleScroll(e, 'lab')}
-              className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20"
-            >
-              Try the Lab
-            </a>
+            <div className="flex items-center gap-4">
+              <button 
+                onClick={handleSelectKey}
+                title="Change API Key"
+                className="p-2 text-slate-400 hover:text-white transition-colors"
+              >
+                <Settings size={20} />
+              </button>
+              <a 
+                href="#lab" 
+                onClick={(e) => handleScroll(e, 'lab')}
+                className="bg-blue-600 hover:bg-blue-500 text-white px-4 py-2 rounded-lg text-sm font-bold transition-all shadow-lg shadow-blue-500/20"
+              >
+                Try the Lab
+              </a>
+            </div>
           </div>
         </div>
       </nav>
@@ -264,8 +334,12 @@ const App: React.FC = () => {
       </main>
 
       <footer className="bg-slate-950 border-t border-slate-900 py-12 text-center text-slate-600 text-sm">
+        <p className="flex justify-center items-center gap-4 mb-4">
+           <a href="https://ai.google.dev/gemini-api/docs/billing" target="_blank" rel="noopener noreferrer" className="hover:text-blue-400 underline">API Billing Info</a>
+           <button onClick={handleSelectKey} className="hover:text-blue-400 underline">Update API Key</button>
+        </p>
         <p>&copy; {new Date().getFullYear()} SecurePass Analyst. Built for Educational Purposes.</p>
-        <p className="mt-2">Powered by Gemini 2.5 Flash</p>
+        <p className="mt-2">Powered by Gemini 3 Flash</p>
       </footer>
     </div>
   );
